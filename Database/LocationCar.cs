@@ -2,6 +2,7 @@
 using Npgsql;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,7 +32,7 @@ namespace InstaCar.Web.Access.Database
         #region constructor
         public LocationCar()
         {
-
+            this.connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
         }
 
         public LocationCar(NpgsqlConnection connection)
@@ -57,8 +58,10 @@ namespace InstaCar.Web.Access.Database
         //Static
         //----------------------------------------------------------------------------------------------
         #region static
-        public static List<LocationCar> GetAllLocation(NpgsqlConnection connection)
+        public static List<LocationCar> GetAllLocation()
         {
+            NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
+
             List<LocationCar> allLocations = new List<LocationCar>();
             LocationCar location = null;
             NpgsqlCommand command = new NpgsqlCommand();
@@ -85,8 +88,10 @@ namespace InstaCar.Web.Access.Database
             return allLocations;
         }
 
-        static LocationCar GetSpecificLocation(NpgsqlConnection connection, int key)
+        static LocationCar GetSpecificLocation( int key)
         {
+            NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
+
             LocationCar location = null;
             NpgsqlCommand command = new NpgsqlCommand();
             command.Connection = connection;

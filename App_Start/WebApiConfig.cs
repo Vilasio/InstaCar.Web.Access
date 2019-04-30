@@ -18,7 +18,14 @@ namespace InstaCar.Web.Access
                 name: "DefaultApi",
                 routeTemplate: "api/{controller}/{id}",
                 defaults: new { id = RouteParameter.Optional }
+
             );
+            /*config.Routes.MapHttpRoute(
+                name: "LoginApi",
+                routeTemplate: "api/{controller}/login/{nn}/{pw}",
+                defaults: new { nn = RouteParameter.Optional, pw = RouteParameter.Optional }
+
+            );*/
         }
     }
 }

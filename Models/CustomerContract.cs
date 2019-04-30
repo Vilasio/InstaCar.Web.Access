@@ -18,7 +18,7 @@ namespace InstaCar.Web.Access.Models
         [DataMember(Name = "customerid")]
         public long? CustomerId { get; set; }
 
-        [DataMember(Name = "customerid")]
+        [DataMember(Name = "customerno")]
         public string CustomerNo { get; set; }
         [DataMember(Name = "name")]
         public string Name { get; set; }

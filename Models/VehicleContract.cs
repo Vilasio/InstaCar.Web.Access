@@ -37,6 +37,16 @@ namespace InstaCar.Web.Access.Models
         public long? Feature4 { get; set; }
         [DataMember(Name = "notavailable")]
         public bool NotAvailable { get; set; }
+        [DataMember(Name = "feature1string")]
+        public string Feature1String { get; set; }
+        [DataMember(Name = "feature2string")]
+        public string Feature2String { get; set; }
+        [DataMember(Name = "feature3string")]
+        public string Feature3String { get; set; }
+        [DataMember(Name = "feature4string")]
+        public string Feature4String { get; set; }
+
+        
 
         public static explicit operator VehicleContract(Vehicle vehicle)
         {
@@ -52,7 +62,11 @@ namespace InstaCar.Web.Access.Models
                 Feature2 = vehicle.Feature2,
                 Feature3 = vehicle.Feature3,
                 Feature4 = vehicle.Feature4,
-                NotAvailable = vehicle.NotAvailable
+                NotAvailable = vehicle.NotAvailable,
+                Feature1String = vehicle.Feature1String,
+                Feature2String = vehicle.Feature2String,
+                Feature3String = vehicle.Feature3String,
+                Feature4String = vehicle.Feature4String
             };
         }
     }

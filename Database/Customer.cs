@@ -2,6 +2,7 @@
 using Npgsql;
 using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -31,7 +32,7 @@ namespace InstaCar.Web.Access.Database
         #region constructor
         public Customer()
         {
-
+            this.connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
         }
 
         public Customer(NpgsqlConnection connection)
@@ -101,8 +102,9 @@ namespace InstaCar.Web.Access.Database
             return allCustomers;
         }
 
-        static Customer GetSpecificCustomer(NpgsqlConnection connection, int key)
-        { 
+        static Customer GetSpecificCustomer(int key)
+        {
+            NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
             Customer customer = null;
             NpgsqlCommand command = new NpgsqlCommand();
             command.Connection = connection;
@@ -131,6 +133,46 @@ namespace InstaCar.Web.Access.Database
             }
             reader.Close();
             return customer;
+        }
+
+        public static Customer LoginCheck(string username, string password)
+        {
+            NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
+            connection.Open();
+            Customer customer = null;
+            NpgsqlCommand command = new NpgsqlCommand();
+            command.Connection = connection;
+            command.CommandText = $"Select {COLUMN} from {TABLE} where nickname = :us and password = crypt(:pa, password);";
+            command.Parameters.AddWithValue(":us", String.IsNullOrEmpty(username) ? "" : username);
+            command.Parameters.AddWithValue(":pa", String.IsNullOrEmpty(password) ? "" : password);
+            NpgsqlDataReader reader = command.ExecuteReader();
+            if (reader.HasRows)
+            {
+                while (reader.Read())
+                {
+                    customer = new Customer(connection)
+                    {
+                        CustomerId = reader.GetInt64(0),
+                        CustomerNo = reader.IsDBNull(1) ? null : reader.GetString(1),
+                        Name = reader.IsDBNull(2) ? null : reader.GetString(2),
+                        Familyname = reader.IsDBNull(3) ? null : reader.GetString(3),
+                        Street = reader.IsDBNull(4) ? null : reader.GetString(4),
+                        HouseNr = reader.IsDBNull(5) ? 0 : reader.GetInt64(5),
+                        Postcode = reader.IsDBNull(6) ? null : reader.GetString(6),
+                        City = reader.IsDBNull(7) ? null : reader.GetString(7),
+                        Email = reader.IsDBNull(8) ? null : reader.GetString(8),
+                        Telefon = reader.IsDBNull(9) ? null : reader.GetString(9),
+                        Iban = reader.IsDBNull(10) ? null : reader.GetString(10),
+                        Bic = reader.IsDBNull(11) ? null : reader.GetString(11),
+                        Nickname = reader.IsDBNull(12) ? null : reader.GetString(12)
+                    };
+                }
+                reader.Close();
+                
+            }
+            connection.Close();
+            return customer;
+
         }
         #endregion
         //----------------------------------------------------------------------------------------------
