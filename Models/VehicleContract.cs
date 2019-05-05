@@ -45,8 +45,19 @@ namespace InstaCar.Web.Access.Models
         public string Feature3String { get; set; }
         [DataMember(Name = "feature4string")]
         public string Feature4String { get; set; }
+        [DataMember(Name = "mainimage")]
+        public Byte[] MainImage { get; set; }
+        [DataMember(Name = "mainimagestring")]
+        public String MainImageString
+        {
+            get
+            {
+                if (MainImage != null)
+                {
+                    return Convert.ToBase64String(MainImage);
+                } return null; } }
 
-        
+
 
         public static explicit operator VehicleContract(Vehicle vehicle)
         {
@@ -66,7 +77,8 @@ namespace InstaCar.Web.Access.Models
                 Feature1String = vehicle.Feature1String,
                 Feature2String = vehicle.Feature2String,
                 Feature3String = vehicle.Feature3String,
-                Feature4String = vehicle.Feature4String
+                Feature4String = vehicle.Feature4String,
+                MainImage = vehicle.MainImage
             };
         }
     }

@@ -69,6 +69,7 @@ namespace InstaCar.Web.Access.Database
         public DateTime? Reserved { get; set; }
         public bool InUse { get; set; }
         public bool Locked { get; set; }
+        public Byte[] MainImage { get; set; }
 
         private List<ImageCar> pictures = null;
 
@@ -148,6 +149,10 @@ namespace InstaCar.Web.Access.Database
             }
             reader.Close();
             connection.Close();
+            foreach (Vehicle v in allVehicles)
+            {
+                v.MainImage = ImageCar.GetMainImageByte(v.CarId);
+            }
             return allVehicles;
         }
 
@@ -157,6 +162,8 @@ namespace InstaCar.Web.Access.Database
             Vehicle vehicle = null;
             NpgsqlCommand command = new NpgsqlCommand();
             command.Connection = connection;
+            connection.Open();
+
             command.CommandText = $"Select * from {TABLE} where car_id = :id;";
             command.Parameters.AddWithValue("id", key);
             NpgsqlDataReader reader = command.ExecuteReader();
@@ -182,19 +189,22 @@ namespace InstaCar.Web.Access.Database
                 };
             }
             reader.Close();
+            connection.Close();
             return vehicle;
         }
 
-        public static List<Vehicle> GetAvailableVehicles(NpgsqlConnection connection, DateTime time)
+        public static List<Vehicle> GetAvailableVehicles()
         {
             List<Vehicle> allVehicles = new List<Vehicle>();
 
             NpgsqlCommand command = new NpgsqlCommand();
+            NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
+            connection.Open();
             command.Connection = connection;
             command.CommandText = $"Select c.car_id, c.location_id, c.modell, c.brand, c.hp, c.price, c.feature1, c.feature2, c.feature3, c.feature4, " +
                 $"c.notavailable, c.reserved, c.in_use, c.locked from {TABLE} as c left join {TABLERENT} as r on r.car_id = c.car_id " +
                 $"where ((r.datebegin > :t or r.dateend < :t) or r.datebegin is null) and c.notavailable = false and c.deleted = false;";
-            command.Parameters.AddWithValue("t", time);
+            command.Parameters.AddWithValue("t", DateTime.Now);
 
             NpgsqlDataReader reader = command.ExecuteReader();
 
@@ -219,6 +229,7 @@ namespace InstaCar.Web.Access.Database
                 });
             }
             reader.Close();
+            connection.Close();
             return allVehicles;
         }
 
@@ -328,7 +339,7 @@ namespace InstaCar.Web.Access.Database
                 Feature3 = vehicleContract.Feature3,
                 Feature4 = vehicleContract.Feature4,
                 NotAvailable = vehicleContract.NotAvailable,
-                
+                MainImage = vehicleContract.MainImage,
                
             };
         }

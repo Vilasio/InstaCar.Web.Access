@@ -31,6 +31,23 @@ namespace InstaCar.Web.Access.Controllers
             
         }
 
+        [HttpGet]
+        [Route("api/vehicle/available")]
+        public List<VehicleContract> AvailableVehicles()
+        {
+            try
+            {
+                List<VehicleContract> result = new List<VehicleContract>();
+                Vehicle.GetAvailableVehicles().ForEach(v => result.Add((VehicleContract)v));
+                return result;
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Error on GET: {ex.Message}");
+                return null;
+            }
+        }
+
         // GET: api/Vehicle/5
         public string Get(int id)
         {

@@ -37,6 +37,13 @@ namespace InstaCar.Web.Access.Database
             this.connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
         }
 
+        public Rent(int customerid, int vehicleid)
+        {
+            this.CustomerId = customerid;
+            this.CarId = vehicleid;
+            this.connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
+        }
+
         public Rent(NpgsqlConnection connection)
         {
             this.connection = connection;
@@ -184,7 +191,7 @@ namespace InstaCar.Web.Access.Database
             return currentRents;
         }
 
-        public static Rent GetCurrentRent(int CustomerId)
+        public static Rent GetSpecificRent(int RentId)
         {
             NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
             connection.Open();
@@ -195,9 +202,9 @@ namespace InstaCar.Web.Access.Database
                 $"from {TABLE} as r " +
                 $"inner join {TABLECar} as v on r.car_id = v.car_id " +
                 $"inner join {TABLECus} as c on r.customer_id = c.customer_id" +
-                $" where r.customer_id = :cid and r.dateend is null;";
+                $" where r.rent_id = :rid and r.dateend is null;";
 
-            command.Parameters.AddWithValue("cid", CustomerId);
+            command.Parameters.AddWithValue("rid", RentId);
             NpgsqlDataReader reader = command.ExecuteReader();
 
             while (reader.Read())
@@ -223,6 +230,47 @@ namespace InstaCar.Web.Access.Database
             reader.Close();
             connection.Close();
             return rent;
+        }
+
+        public static List<Rent> GetCurrentRents(int CustomerId)
+        {
+            NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
+            connection.Open();
+            List<Rent> rents = new List<Rent>();
+            NpgsqlCommand command = new NpgsqlCommand();
+            command.Connection = connection;
+            command.CommandText = $"Select r.rent_id, r.customer_id, r.car_id, r.rent_no, r.datebegin, r.dateend, r.sumprice, r.hours, v.modell, v.brand, c.name, c.familyname, r.priceperhour " +
+                $"from {TABLE} as r " +
+                $"inner join {TABLECar} as v on r.car_id = v.car_id " +
+                $"inner join {TABLECus} as c on r.customer_id = c.customer_id" +
+                $" where r.customer_id = :cid and r.dateend is null;";
+
+            command.Parameters.AddWithValue("cid", CustomerId);
+            NpgsqlDataReader reader = command.ExecuteReader();
+
+            while (reader.Read())
+            {
+                rents.Add(new Rent(connection)
+                {
+                    RentId = reader.GetInt64(0),
+                    CustomerId = reader.GetInt64(1),
+                    CarId = reader.GetInt64(2),
+                    RentNo = reader.GetString(3),
+                    Begin = reader.IsDBNull(4) ? null : (DateTime?)reader.GetDateTime(4),
+                    End = reader.IsDBNull(5) ? null : (DateTime?)reader.GetDateTime(5),
+                    SumPrice = reader.IsDBNull(6) ? 0 : (double?)reader.GetDouble(6),
+                    Hours = reader.IsDBNull(7) ? 0 : (long?)reader.GetInt64(7),
+                    Modell = reader.IsDBNull(8) ? null : reader.GetString(8),
+                    Brand = reader.IsDBNull(9) ? null : reader.GetString(9),
+                    Name = reader.IsDBNull(10) ? null : reader.GetString(10),
+                    FamilyName = reader.IsDBNull(11) ? null : reader.GetString(11),
+                    PricePerHour = reader.IsDBNull(12) ? 0 : (double?)reader.GetDouble(12)
+
+                });
+            }
+            reader.Close();
+            connection.Close();
+            return rents;
         }
 
         public static int SomethingRented(int customerId )
@@ -251,13 +299,26 @@ namespace InstaCar.Web.Access.Database
         #region public
         public int Save()
         {
+            if (!this.RentId.HasValue)
+            {
+                this.Vehicle = Vehicle.GetSpecificVehicles(this.connection, (int)this.CarId);
+                this.Modell = this.Vehicle.Modell;
+                this.Brand = this.Vehicle.Brand;
+                this.customer = Customer.GetSpecificCustomer(this.connection, (int)this.CustomerId);
+                this.Name = this.customer.Name;
+                this.FamilyName = this.customer.Familyname;
+                this.Begin = DateTime.Now;
+                this.PricePerHour = this.Vehicle.Price;
+            }
+            
             NpgsqlCommand command = new NpgsqlCommand();
             command.Connection = this.connection;
+            connection.Open();
             if (this.RentId.HasValue)
             {
 
                 command.CommandText =
-                $"update {TABLE} set datebegin = :db, dateend = :de, sumprice = :sp, hours = :un";
+                $"update {TABLE} set datebegin = :db, dateend = :de, sumprice = :sp, hours = :un where rent_id = :rid";
 
 
             }
@@ -265,8 +326,8 @@ namespace InstaCar.Web.Access.Database
             {
                 command.CommandText = $"select nextval('{TABLE}_seq')";
                 this.RentId = (long?)command.ExecuteScalar();
-                command.CommandText = $" insert into {TABLE} (rent_id, customer_id, car_id, rent_no, datebegin, dateend, sumprice, hours)" +
-                    $" values(:rid, :cid, :caid, :rno, :db, :de, :sp, :un)";
+                command.CommandText = $" insert into {TABLE} (rent_id, customer_id, car_id, rent_no, datebegin, dateend, sumprice, hours, deleted)" +
+                    $" values(:rid, :cid, :caid, :rno, :db, :de, :sp, :un, :del)";
             }
             if (this.RentNo == null || this.RentNo == "")// CustomerNO generieren--------------------------
             {
@@ -283,25 +344,32 @@ namespace InstaCar.Web.Access.Database
             command.Parameters.AddWithValue("caid", this.CarId.Value);
             command.Parameters.AddWithValue("rno", this.RentNo);
             command.Parameters.AddWithValue("db", this.Begin.HasValue ? (object)this.Begin.Value : (object)DBNull.Value);
-            command.Parameters.AddWithValue("db", this.End.HasValue ? (object)this.End.Value : (object)DBNull.Value);
+            command.Parameters.AddWithValue("de", this.End.HasValue ? (object)this.End.Value : (object)DBNull.Value);
             command.Parameters.AddWithValue("sp", this.SumPrice.HasValue ? (object)this.SumPrice.Value : 0);
             command.Parameters.AddWithValue("un", this.Hours.HasValue ? (object)this.Hours.Value : 0);
+            command.Parameters.AddWithValue("del", false);
 
+            connection.Close();
             return command.ExecuteNonQuery();
         }
 
         public int StartRent()
         {
-            int result;
-            this.PricePerHour = Vehicle.Getprice(this.connection);
+            this.Vehicle = Vehicle.GetSpecificVehicles(this.connection, (int)this.CarId);
+            this.Modell = this.Vehicle.Modell;
+            this.Brand = this.Vehicle.Brand;
+            this.customer = Customer.GetSpecificCustomer(this.connection, (int)this.CustomerId);
+            this.Name = this.customer.Name;
+            this.FamilyName = this.customer.Familyname;
+
             NpgsqlCommand command = new NpgsqlCommand();
             command.Connection = this.connection;
-
+            connection.Open();
             if (this.RentId.HasValue)
             {
 
                 command.CommandText =
-                $"update {TABLE} set datebegin = :db";
+                $"update {TABLE} set datebegin = :db, dateend = :de, sumprice = :sp, hours = :un where rent_id = :rid";
 
 
             }
@@ -309,12 +377,10 @@ namespace InstaCar.Web.Access.Database
             {
                 command.CommandText = $"select nextval('{TABLE}_seq')";
                 this.RentId = (long?)command.ExecuteScalar();
-                command.CommandText = $" insert into {TABLE} (rent_id, customer_id, car_id, rent_no, datebegin, priceperhour)" +
-                    $" values(:rid, :cid, :caid, :rno, :db, :pph)";
+                command.CommandText = $" insert into {TABLE} (rent_id, customer_id, car_id, rent_no, datebegin, dateend, sumprice, priceperhour,  hours, deleted)" +
+                    $" values(:rid, :cid, :caid, :rno, :db, :de, :sp, :pp, :un, :del)";
             }
-           
-            
-            if (this.RentNo == null || this.RentNo == "")// RentNo generieren--------------------------
+            if (this.RentNo == null || this.RentNo == "")// CustomerNO generieren--------------------------
             {
                 DateTime now = DateTime.Now;
                 int year = now.Year;
@@ -329,15 +395,67 @@ namespace InstaCar.Web.Access.Database
             command.Parameters.AddWithValue("caid", this.CarId.Value);
             command.Parameters.AddWithValue("rno", this.RentNo);
             command.Parameters.AddWithValue("db", this.Begin.HasValue ? (object)this.Begin.Value : (object)DBNull.Value);
-            command.Parameters.AddWithValue("pph", this.PricePerHour.HasValue ? (object)this.PricePerHour.Value : (object)DBNull.Value);
+            command.Parameters.AddWithValue("de", this.End.HasValue ? (object)this.End.Value : (object)DBNull.Value);
+            command.Parameters.AddWithValue("pp", this.PricePerHour.HasValue ? (object)this.PricePerHour.Value : 0);
+            command.Parameters.AddWithValue("sp", this.SumPrice.HasValue ? (object)this.SumPrice.Value : 0);
+            command.Parameters.AddWithValue("un", this.Hours.HasValue ? (object)this.Hours.Value : 0);
+            command.Parameters.AddWithValue("del", false);
 
-            result =+ command.ExecuteNonQuery();
+            connection.Close();
+            return command.ExecuteNonQuery();
+        }
 
-            command.CommandText =
-              $"update {TABLECar} set in_use = true where car_id = :cid";
+        public int StartRentNow()
+        {
+            this.Vehicle = Vehicle.GetSpecificVehicles(this.connection, (int)this.CarId);
+            this.Modell = this.Vehicle.Modell;
+            this.Brand = this.Vehicle.Brand;
+            this.customer = Customer.GetSpecificCustomer(this.connection, (int)this.CustomerId);
+            this.Name = this.customer.Name;
+            this.FamilyName = this.customer.Familyname;
+            this.Begin = DateTime.Now;
+            this.PricePerHour = this.Vehicle.Price;
+            NpgsqlCommand command = new NpgsqlCommand();
+            command.Connection = this.connection;
+            connection.Open();
+            if (this.RentId.HasValue)
+            {
+
+                command.CommandText =
+                $"update {TABLE} set datebegin = :db, dateend = :de, sumprice = :sp, hours = :un where rent_id = :rid";
+
+
+            }
+            else
+            {
+                command.CommandText = $"select nextval('{TABLE}_seq')";
+                this.RentId = (long?)command.ExecuteScalar();
+                command.CommandText = $" insert into {TABLE} (rent_id, customer_id, car_id, rent_no, datebegin, dateend, sumprice, priceperhour,  hours, deleted)" +
+                    $" values(:rid, :cid, :caid, :rno, :db, :de, :sp, :pp, :un, :del)";
+            }
+            if (this.RentNo == null || this.RentNo == "")// CustomerNO generieren--------------------------
+            {
+                DateTime now = DateTime.Now;
+                int year = now.Year;
+                int month = now.Month;
+                string number = this.RentId.ToString();
+                number = number.PadLeft(6, '0');
+                this.RentNo = $"{year}/{month}/{number}";
+            }
+
+            command.Parameters.AddWithValue("rid", this.RentId.Value);
             command.Parameters.AddWithValue("cid", this.CustomerId.Value);
-            result = +command.ExecuteNonQuery();
+            command.Parameters.AddWithValue("caid", this.CarId.Value);
+            command.Parameters.AddWithValue("rno", this.RentNo);
+            command.Parameters.AddWithValue("db", this.Begin.HasValue ? (object)this.Begin.Value : (object)DBNull.Value);
+            command.Parameters.AddWithValue("de", this.End.HasValue ? (object)this.End.Value : (object)DBNull.Value);
+            command.Parameters.AddWithValue("pp", this.PricePerHour.HasValue ? (object)this.PricePerHour.Value : 0);
+            command.Parameters.AddWithValue("sp", this.SumPrice.HasValue ? (object)this.SumPrice.Value : 0);
+            command.Parameters.AddWithValue("un", this.Hours.HasValue ? (object)this.Hours.Value : 0);
+            command.Parameters.AddWithValue("del", false);
 
+            int result = command.ExecuteNonQuery();
+            connection.Close();
             return result;
         }
 
@@ -346,7 +464,11 @@ namespace InstaCar.Web.Access.Database
             int result = 0;
             NpgsqlCommand command = new NpgsqlCommand();
             command.Connection = this.connection;
-
+            connection.Open();
+            if (!this.End.HasValue)
+            {
+                this.End = DateTime.Now;
+            }
             if (this.RentId.HasValue)
             {
                 this.End = DateTime.Now;
@@ -356,14 +478,14 @@ namespace InstaCar.Web.Access.Database
 
 
                 command.CommandText =
-                $"update {TABLE} set dateend = :de, sumprice = :sp, hours = :un";
+                $"update {TABLE} set dateend = :de, sumprice = :sp, hours = :un where rent_id = :rid";
 
                 command.Parameters.AddWithValue("rid", this.RentId.Value);
                 command.Parameters.AddWithValue("cid", this.CustomerId.Value);
                 command.Parameters.AddWithValue("caid", this.CarId.Value);
                 command.Parameters.AddWithValue("rno", this.RentNo);
                 command.Parameters.AddWithValue("db", this.Begin.HasValue ? (object)this.Begin.Value : (object)DBNull.Value);
-                command.Parameters.AddWithValue("db", this.End.HasValue ? (object)this.End.Value : (object)DBNull.Value);
+                command.Parameters.AddWithValue("de", this.End.HasValue ? (object)this.End.Value : (object)DBNull.Value);
                 command.Parameters.AddWithValue("sp", this.SumPrice.HasValue ? (object)this.SumPrice.Value : 0);
                 command.Parameters.AddWithValue("un", this.Hours.HasValue ? (object)this.Hours.Value : 0);
 
@@ -374,7 +496,7 @@ namespace InstaCar.Web.Access.Database
                 command.Parameters.AddWithValue("cid", this.CustomerId.Value);
                 result = +command.ExecuteNonQuery();
             }
-
+            connection.Close();
             return result;
         }
 
@@ -394,7 +516,9 @@ namespace InstaCar.Web.Access.Database
                 Name = rentContract.Name,
                 FamilyName = rentContract.FamilyName,
                 Modell = rentContract.Modell,
-                Brand = rentContract.Brand
+                Brand = rentContract.Brand,
+                PricePerHour = rentContract.PricePerHour
+                
             };
         }
         #endregion

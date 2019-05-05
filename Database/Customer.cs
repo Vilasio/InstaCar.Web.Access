@@ -102,12 +102,12 @@ namespace InstaCar.Web.Access.Database
             return allCustomers;
         }
 
-        static Customer GetSpecificCustomer(int key)
+        public static Customer GetSpecificCustomer(NpgsqlConnection connection, int key)
         {
-            NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
             Customer customer = null;
             NpgsqlCommand command = new NpgsqlCommand();
             command.Connection = connection;
+            connection.Open();
             command.CommandText = $"Select {COLUMN} from {TABLE} where customer_id = :id;";
             command.Parameters.AddWithValue("id", key);
             NpgsqlDataReader reader = command.ExecuteReader();
@@ -132,6 +132,7 @@ namespace InstaCar.Web.Access.Database
                 };
             }
             reader.Close();
+            connection.Close();
             return customer;
         }
 
@@ -142,7 +143,7 @@ namespace InstaCar.Web.Access.Database
             Customer customer = null;
             NpgsqlCommand command = new NpgsqlCommand();
             command.Connection = connection;
-            command.CommandText = $"Select {COLUMN} from {TABLE} where nickname = :us and password = crypt(:pa, password);";
+            command.CommandText = $"Select {COLUMN} from {TABLE} where nickname = :us and password = crypt(:pa, password)";
             command.Parameters.AddWithValue(":us", String.IsNullOrEmpty(username) ? "" : username);
             command.Parameters.AddWithValue(":pa", String.IsNullOrEmpty(password) ? "" : password);
             NpgsqlDataReader reader = command.ExecuteReader();

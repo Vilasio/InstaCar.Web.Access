@@ -29,6 +29,8 @@ namespace Insta.Web.Access.Models
         public DateTime? End { get; set; }
         [DataMember(Name = "sumprice")]
         public double? SumPrice { get; set; }
+        [DataMember(Name = "priceperhour")]
+        public double? PricePerHour { get; set; }
         [DataMember(Name = "hours")]
         public long? Hours { get; set; }
         [DataMember(Name = "name")]
@@ -39,6 +41,8 @@ namespace Insta.Web.Access.Models
         public string Modell { get; set; }
         [DataMember(Name = "brand")]
         public string Brand { get; set; }
+
+    
 
         public static explicit operator RentContract(Rent rent)
         {
@@ -54,7 +58,8 @@ namespace Insta.Web.Access.Models
                 Name = rent.Name,
                 FamilyName = rent.FamilyName,
                 Modell = rent.Modell,
-                Brand = rent.Brand
+                Brand = rent.Brand,
+                PricePerHour = rent.PricePerHour
             };
         }
     }

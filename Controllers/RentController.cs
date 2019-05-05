@@ -15,45 +15,96 @@ namespace InstaCar.Web.Access.Controllers
     public class RentController : ApiController
     {
         // GET: api/Rent
-        public IEnumerable<string> Get()
+        /*public IEnumerable<string> Get()
         {
             return new string[] { "value1", "value2" };
-        }
-
-        // GET: api/Rent/5
-        public string Get(int id)
-        {
-            return "value";
-        }
+        }*/
 
         [HttpGet]
-        [Route("api/rent/rented/{cid}")]
-        public RentContract CustomerLogin(int cid)
+        [Route("api/rent/specrent/{rid}")]
+        public RentContract Get(int rid)
         {
             try
             {
+                RentContract result = (RentContract)Rent.GetSpecificRent(rid);
+                return result;
 
-                RentContract rented = (RentContract)Rent.GetCurrentRent(cid);
-                if (rented.RentId.HasValue)
-                {
-                    return rented;
-                }
-                else
-                {
-                    return new RentContract();
-                }
 
             }
             catch (Exception ex)
             {
                 WriteLog($"Error on GET: {ex.Message}");
                 return new RentContract();
+            };
+        }
+
+        [HttpGet]
+        [Route("api/rent/rented/{cid}")]
+        public List<RentContract> CustomerLogin(int cid)
+        {
+            try
+            {
+                List<RentContract> result = new List<RentContract>();
+                Rent.GetCurrentRents(cid).ForEach(v => result.Add((RentContract)v));
+                return result;
+                
+
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Error on GET: {ex.Message}");
+                return new List<RentContract>();
             }
         }
 
         // POST: api/Rent
-        public void Post([FromBody]string value)
+        public HttpResponseMessage Post([FromBody]RentContract value)
         {
+            try
+            {
+                Rent rent = (Rent)value;
+                rent.Save();
+                return new HttpResponseMessage(HttpStatusCode.Created);
+            }
+            catch (Exception ex)
+            {
+                WriteLog(ex.Message);
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [HttpPost]
+        [Route("api/rent/rentend/{rid}")]
+        public HttpResponseMessage RentEnd(int rid)
+        {
+            try
+            {
+                Rent rent = Rent.GetSpecificRent(rid);
+                rent.Endrent();
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            }
+            catch (Exception ex)
+            {
+                WriteLog(ex.Message);
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+        }
+
+        [HttpPost]
+        [Route("api/rent/rentbeginnow/")]
+        public HttpResponseMessage RentEnd([FromBody]RentContract value)
+        {
+            try
+            {
+                Rent rent = (Rent)value;
+                rent.StartRentNow();
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            }
+            catch (Exception ex)
+            {
+                WriteLog(ex.Message);
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
         }
 
         // PUT: api/Rent/5
