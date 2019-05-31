@@ -57,6 +57,25 @@ namespace InstaCar.Web.Access.Controllers
             }
         }
 
+        [HttpGet]
+        [Route("api/rent/Allrents/{cid}")]
+        public List<RentContract> Allrents(int cid)
+        {
+            try
+            {
+                List<RentContract> result = new List<RentContract>();
+                Rent.GetMyRents(cid).ForEach(v => result.Add((RentContract)v));
+                return result;
+
+
+            }
+            catch (Exception ex)
+            {
+                WriteLog($"Error on GET: {ex.Message}");
+                return new List<RentContract>();
+            }
+        }
+
         // POST: api/Rent
         public HttpResponseMessage Post([FromBody]RentContract value)
         {
@@ -92,7 +111,7 @@ namespace InstaCar.Web.Access.Controllers
 
         [HttpPost]
         [Route("api/rent/rentbeginnow/")]
-        public HttpResponseMessage RentEnd([FromBody]RentContract value)
+        public HttpResponseMessage RentBeginNow([FromBody]RentContract value)
         {
             try
             {
@@ -107,6 +126,22 @@ namespace InstaCar.Web.Access.Controllers
             }
         }
 
+        [HttpPost]
+        [Route("api/rent/rentbegin/")]
+        public HttpResponseMessage RentBegin([FromBody]RentContract value)
+        {
+            try
+            {
+                Rent rent = (Rent)value;
+                rent.Save();
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            }
+            catch (Exception ex)
+            {
+                WriteLog(ex.Message);
+                return new HttpResponseMessage(HttpStatusCode.InternalServerError);
+            }
+        }
         // PUT: api/Rent/5
         public void Put(int id, [FromBody]string value)
         {

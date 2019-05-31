@@ -152,6 +152,7 @@ namespace InstaCar.Web.Access.Database
         public static List<Rent> GetMyRents(int CustomerId)
         {
             NpgsqlConnection connection = new NpgsqlConnection(ConfigurationManager.AppSettings["Connection"]);
+            connection.Open();
             List<Rent> currentRents = new List<Rent>();
             Rent Rent = null;
             NpgsqlCommand command = new NpgsqlCommand();
@@ -160,7 +161,7 @@ namespace InstaCar.Web.Access.Database
                 $"from {TABLE} as r " +
                 $"inner join {TABLECar} as v on r.car_id = v.car_id " +
                 $"inner join {TABLECus} as c on r.customer_id = c.customer_id" +
-                $" where r.customer_id = :cid;";
+                $" where r.customer_id = :cid order by r.dateend desc;";
 
             command.Parameters.AddWithValue("cid", CustomerId);
             NpgsqlDataReader reader = command.ExecuteReader();
@@ -188,6 +189,7 @@ namespace InstaCar.Web.Access.Database
                 );
             }
             reader.Close();
+            connection.Close();
             return currentRents;
         }
 
@@ -202,7 +204,7 @@ namespace InstaCar.Web.Access.Database
                 $"from {TABLE} as r " +
                 $"inner join {TABLECar} as v on r.car_id = v.car_id " +
                 $"inner join {TABLECus} as c on r.customer_id = c.customer_id" +
-                $" where r.rent_id = :rid and r.dateend is null;";
+                $" where r.rent_id = :rid;";
 
             command.Parameters.AddWithValue("rid", RentId);
             NpgsqlDataReader reader = command.ExecuteReader();
@@ -243,7 +245,7 @@ namespace InstaCar.Web.Access.Database
                 $"from {TABLE} as r " +
                 $"inner join {TABLECar} as v on r.car_id = v.car_id " +
                 $"inner join {TABLECus} as c on r.customer_id = c.customer_id" +
-                $" where r.customer_id = :cid and r.dateend is null;";
+                $" where r.customer_id = :cid and (r.dateend is null or r.dateend > current_Timestamp);";
 
             command.Parameters.AddWithValue("cid", CustomerId);
             NpgsqlDataReader reader = command.ExecuteReader();
@@ -349,8 +351,9 @@ namespace InstaCar.Web.Access.Database
             command.Parameters.AddWithValue("un", this.Hours.HasValue ? (object)this.Hours.Value : 0);
             command.Parameters.AddWithValue("del", false);
 
+            int result = command.ExecuteNonQuery();
             connection.Close();
-            return command.ExecuteNonQuery();
+            return result;
         }
 
         public int StartRent()
